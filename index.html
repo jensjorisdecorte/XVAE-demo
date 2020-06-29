@@ -386,7 +386,7 @@ input[type=range]
 
         tf.serialization.registerClass(lambdaLayer);
 
-        model = await tf.loadLayersModel('/model/model.json', false);
+        model = await tf.loadLayersModel('https://jensjorisdecorte.github.io/XVAE-demo//model/model.json', false);
 
         let layers = model.layers;
         decoder = layers[layers.length-2];
