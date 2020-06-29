@@ -1,0 +1,69 @@
+{"format": "layers-model", "generatedBy": "keras v2.2.4-tf", "convertedBy": "TensorFlow.js Converter v1.2.6", "modelTopology": {"keras_version": "2.2.4-tf", "backend": "tensorflow", "model_config": {"class_name": "Model", "config": {"name": "model_10", "layers": [
+    
+{"name": "input_6", "class_name": "InputLayer", "config": {"batch_input_shape": [null, 784], "dtype": "float32", "sparse": false, "name": "input_6"}, "inbound_nodes": []},
+
+{"name": "input_1", "class_name": "InputLayer", "config": {"batch_input_shape": [null, 784], "dtype": "float32", "sparse": false, "name": "input_1"}, "inbound_nodes": []},
+
+{"name": "dense_3", "class_name": "Dense", "config": {"name": "dense_3", "trainable": true, "batch_input_shape": [null, 784], "dtype": "float32", "units": 800, "activation": "relu", "use_bias": true, "kernel_initializer": {"class_name": "GlorotUniform", "config": {"seed": null, "dtype": "float32"}}, "bias_initializer": {"class_name": "Zeros", "config": {"dtype": "float32"}}, "kernel_regularizer": null, "bias_regularizer": null, "activity_regularizer": null, "kernel_constraint": null, "bias_constraint": null}, "inbound_nodes": [[["input_6", 0, 0, {}]]]},
+
+{"name": "dense", "class_name": "Dense", "config": {"name": "dense", "trainable": false, "dtype": "float32", "units": 800, "activation": "relu", "use_bias": true, "kernel_initializer": {"class_name": "GlorotUniform", "config": {"seed": null, "dtype": "float32"}}, "bias_initializer": {"class_name": "Zeros", "config": {"dtype": "float32"}}, "kernel_regularizer": null, "bias_regularizer": null, "activity_regularizer": null, "kernel_constraint": null, "bias_constraint": null}, "inbound_nodes": [[["input_1", 0, 0, {}]]]},
+
+{"name": "ccvaeclf_s_log_var", "class_name": "Dense", "config": {"name": "ccvaeclf_s_log_var", "trainable": true, "dtype": "float32", "units": 9, "activation": "linear", "use_bias": true, "kernel_initializer": {"class_name": "Zeros", "config": {"dtype": "float32"}}, "bias_initializer": {"class_name": "Zeros", "config": {"dtype": "float32"}}, "kernel_regularizer": null, "bias_regularizer": null, "activity_regularizer": null, "kernel_constraint": null, "bias_constraint": null}, "inbound_nodes": [[["dense_3", 0, 0, {}]]]},
+
+{"name": "z_log_var", "class_name": "Dense", "config": {"name": "z_log_var", "trainable": false, "dtype": "float32", "units": 7, "activation": "linear", "use_bias": true, "kernel_initializer": {"class_name": "Zeros", "config": {"dtype": "float32"}}, "bias_initializer": {"class_name": "Zeros", "config": {"dtype": "float32"}}, "kernel_regularizer": null, "bias_regularizer": null, "activity_regularizer": null, "kernel_constraint": null, "bias_constraint": null}, "inbound_nodes": [[["dense", 0, 0, {}]]]},
+
+
+
+{"name": "lambda_7", "class_name": "lambdaLayer", "config": {"name": "lambda_7", "trainable": false, "dtype": "float32",
+    "lambda_function": "result = input[0].square();"},
+        "inbound_nodes": [[["ccvaeclf_s_log_var", 0, 0, {}]]]},
+
+{"name": "input_7", "class_name": "InputLayer", "config": {"batch_input_shape": [null, 9], "dtype": "float32", "sparse": false, "name": "input_7"}, "inbound_nodes": []},
+
+{"name": "lambda_3", "class_name": "lambdaLayer", "config": {"name": "lambda_3", "trainable": false, "dtype": "float32",
+    "lambda_function": "result = input[0].square();"},
+        "inbound_nodes": [[["z_log_var", 0, 0, {}]]]},
+
+{"name": "input_2", "class_name": "InputLayer", "config": {"batch_input_shape": [null, 7], "dtype": "float32", "sparse": false, "name": "input_2"}, "inbound_nodes": []},
+
+{"name": "ccvaeclf_s_mean", "class_name": "Dense", "config": {"name": "ccvaeclf_s_mean", "trainable": true, "dtype": "float32", "units": 9, "activation": "linear", "use_bias": true, "kernel_initializer": {"class_name": "GlorotUniform", "config": {"seed": null, "dtype": "float32"}}, "bias_initializer": {"class_name": "Zeros", "config": {"dtype": "float32"}}, "kernel_regularizer": null, "bias_regularizer": null, "activity_regularizer": null, "kernel_constraint": null, "bias_constraint": null}, "inbound_nodes": [[["dense_3", 0, 0, {}]]]},
+
+{"name": "multiply_or_zero_1", "class_name": "Multiply", "config": {"name": "multiply_or_zero_1", "trainable": true, "dtype": "float32"}, "inbound_nodes": [[["lambda_7", 0, 0, {}], ["input_7", 0, 0, {}]]]},
+
+{"name": "z_mean", "class_name": "Dense", "config": {"name": "z_mean", "trainable": false, "dtype": "float32", "units": 7, "activation": "linear", "use_bias": true, "kernel_initializer": {"class_name": "GlorotUniform", "config": {"seed": null, "dtype": "float32"}}, "bias_initializer": {"class_name": "Zeros", "config": {"dtype": "float32"}}, "kernel_regularizer": null, "bias_regularizer": null, "activity_regularizer": null, "kernel_constraint": null, "bias_constraint": null}, "inbound_nodes": [[["dense", 0, 0, {}]]]},
+
+{"name": "multiply_or_zero", "class_name": "Multiply", "config": {"name": "multiply_or_zero", "trainable": false, "dtype": "float32"}, "inbound_nodes": [[["lambda_3", 0, 0, {}], ["input_2", 0, 0, {}]]]},
+
+{"name": "add_2", "class_name": "Add", "config": {"name": "add_2", "trainable": true, "dtype": "float32"}, "inbound_nodes": [[["ccvaeclf_s_mean", 0, 0, {}], ["multiply_or_zero_1", 0, 0, {}]]]},
+
+{"name": "add", "class_name": "Add", "config": {"name": "add", "trainable": false, "dtype": "float32"}, "inbound_nodes": [[["z_mean", 0, 0, {}], ["multiply_or_zero", 0, 0, {}]]]}, {"name": "input_8", "class_name": "InputLayer", "config": {"batch_input_shape": [null, 10], "dtype": "float32", "sparse": false, "name": "input_8"}, "inbound_nodes": []},
+
+{"name": "concatenate_2", "class_name": "Concatenate", "config": {"name": "concatenate_2", "trainable": true, "dtype": "float32", "axis": -1}, "inbound_nodes": [[["add_2", 0, 0, {}], ["add", 0, 0, {}], ["input_8", 0, 0, {}]]]},
+
+{"name": "decoder", "class_name": "Model", "config": {"name": "decoder", "layers": [{"name": "input_5", "class_name": "InputLayer", "config": {"batch_input_shape": [null, 26], "dtype": "float32", "sparse": false, "name": "input_5"}, "inbound_nodes": []},
+
+{"name": "sequential", "class_name": "Sequential", "config": {"name": "sequential", "layers": [
+    {"class_name": "Dense", "config": {"batch_input_shape": [null, 26], "name": "sequential/dense_1", "trainable": true, "dtype": "float32", "units": 800, "activation": "relu", "use_bias": true, "kernel_initializer": {"class_name": "GlorotUniform", "config": {"seed": null, "dtype": "float32"}}, "bias_initializer": {"class_name": "Zeros", "config": {"dtype": "float32"}}, "kernel_regularizer": null, "bias_regularizer": null, "activity_regularizer": null, "kernel_constraint": null, "bias_constraint": null}},
+    {"class_name": "Dense", "config": {"name": "sequential/dense_2", "trainable": true, "dtype": "float32", "units": 784, "activation": "sigmoid", "use_bias": true, "kernel_initializer": {"class_name": "GlorotUniform", "config": {"seed": null, "dtype": "float32"}}, "bias_initializer": {"class_name": "Zeros", "config": {"dtype": "float32"}}, "kernel_regularizer": null, "bias_regularizer": null, "activity_regularizer": null, "kernel_constraint": null, "bias_constraint": null}}
+    ]}, "inbound_nodes": [[["input_5", 0, 0, {}]]]}], "input_layers": [["input_5", 0, 0]], "output_layers": [["sequential", 1, 0]]}, "inbound_nodes": [[["concatenate_2", 0, 0, {}]]]},
+
+{"name": "classifier", "class_name": "Dense", "config": {"name": "classifier", "trainable": true, "dtype": "float32", "units": 10, "activation": "softmax", "use_bias": true, "kernel_initializer": {"class_name": "GlorotUniform", "config": {"seed": null, "dtype": "float32"}}, "bias_initializer": {"class_name": "Zeros", "config": {"dtype": "float32"}}, "kernel_regularizer": {"class_name": "L1L2", "config": {"l1": 0.0, "l2": 0.0}}, "bias_regularizer": null, "activity_regularizer": null, "kernel_constraint": null, "bias_constraint": null}, "inbound_nodes": [[["add_2", 0, 0, {}]]]}], "input_layers": [["input_6", 0, 0], ["input_1", 0, 0], ["input_7", 0, 0], ["input_2", 0, 0], ["input_8", 0, 0]], "output_layers": [["decoder", 1, 0], ["classifier", 0, 0], ["add_2", 0, 0], ["add", 0, 0]]}}, "training_config": {"optimizer_config": {"class_name": "Adam", "config": {"name": "Adam", "clipnorm": 1.0, "learning_rate": 0.0010000000474974513, "decay": 0.0, "beta_1": 0.8999999761581421, "beta_2": 0.9990000128746033, "epsilon": 1e-07, "amsgrad": false}}, "loss": {"classifier": "clf_loss", "decoder": "vae_loss"}, "metrics": ["sse_loss", "kl_loss"], "weighted_metrics": null, "sample_weight_mode": null, "loss_weights": {"classifier": 1, "decoder": 1}}}, "weightsManifest": [{"paths": ["group1-shard1of2.bin", "group1-shard2of2.bin"],
+    "weights": [
+        {"name": "ccvaeclf_s_log_var/kernel", "shape": [800, 9], "dtype": "float32"},
+            {"name": "ccvaeclf_s_log_var/bias", "shape": [9], "dtype": "float32"},
+                {"name": "ccvaeclf_s_mean/kernel", "shape": [800, 9], "dtype": "float32"},
+                    {"name": "ccvaeclf_s_mean/bias", "shape": [9], "dtype": "float32"},
+                        {"name": "classifier/kernel", "shape": [9, 10], "dtype": "float32"},
+                            {"name": "classifier/bias", "shape": [10], "dtype": "float32"},
+                                {"name": "sequential/dense_1/kernel", "shape": [26, 800], "dtype": "float32"},
+                                    {"name": "sequential/dense_1/bias", "shape": [800], "dtype": "float32"},
+                                        {"name": "sequential/dense_2/kernel", "shape": [800, 784], "dtype": "float32"},
+                                            {"name": "sequential/dense_2/bias", "shape": [784], "dtype": "float32"},
+                                                {"name": "dense/kernel", "shape": [784, 800], "dtype": "float32"},
+                                                    {"name": "dense/bias", "shape": [800], "dtype": "float32"},
+                                                        {"name": "dense_3/kernel", "shape": [784, 800], "dtype": "float32"},
+                                                            {"name": "dense_3/bias", "shape": [800], "dtype": "float32"},
+                                                                {"name": "z_log_var/kernel", "shape": [800, 7], "dtype": "float32"},
+                                                                    {"name": "z_log_var/bias", "shape": [7], "dtype": "float32"},
+                                                                        {"name": "z_mean/kernel", "shape": [800, 7], "dtype": "float32"},
+                                                                            {"name": "z_mean/bias", "shape": [7], "dtype": "float32"}]}]}

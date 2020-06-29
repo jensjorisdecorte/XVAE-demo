@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Microsoft competitor</title>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+</head>
+
+<body>
+
+<style>
+
+input[type=range]
+{
+    writing-mode: bt-lr; /* IE */
+    -webkit-appearance: slider-vertical; /* WebKit */
+    width: 8px;
+    height: 175px;
+    padding: 0 5px;
+}
+
+</style>
+
+<script type="text/javascript">
+    let source = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js";
+    let script = document.createElement("script");
+    script.src = source;
+    document.head.append(script);
+
+    const IMAGE_H = 28
+    const IMAGE_W = 28
+    const IMAGE_SIZE = IMAGE_H * IMAGE_W
+    const N_CLASSES = 10
+    const N_DATA  = 65000
+
+    const MNIST_IMAGES_SPRITE_PATH =
+        'https://storage.googleapis.com/learnjs-data/model-builder/mnist_images.png'
+    const MNIST_LABELS_PATH =
+        'https://storage.googleapis.com/learnjs-data/model-builder/mnist_labels_uint8'
+        
+
+    class MnistData {
+        constructor() {
+            this.isDownloaded = false
+        }
+
+        async load(nTrain = 40000, nTest  = 10000) {
+            // Make a request for the MNIST sprited image.
+            this.nTrain = nTrain
+            this.nTest = nTest
+
+            const img = new Image()
+            const canvas = document.createElement('canvas')
+            const ctx = canvas.getContext('2d')
+            const imgRequest = new Promise((resolve, reject) => {
+                img.crossOrigin = ''
+                img.onload = () => {
+                    img.width = img.naturalWidth
+                    img.height = img.naturalHeight
+
+                    const datasetBytesBuffer =
+                        new ArrayBuffer(N_DATA * IMAGE_SIZE * 4)
+
+                    const chunkSize = 5000
+                    canvas.width = img.width
+                    canvas.height = chunkSize
+
+                    for (let i = 0; i < N_DATA / chunkSize; i++) {
+                        const datasetBytesView = new Float32Array(
+                            datasetBytesBuffer, i * IMAGE_SIZE * chunkSize * 4,
+                            IMAGE_SIZE * chunkSize)
+                        ctx.drawImage(
+                            img, 0, i * chunkSize, img.width, chunkSize, 0, 0, img.width,
+                            chunkSize)
+
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+
+                        for (let j = 0; j < imageData.data.length / 4; j++) {
+                        // All channels hold an equal value since the image is grayscale, so
+                        // just read the red channel.
+                            datasetBytesView[j] = imageData.data[j * 4] / 255
+                        }
+                    }
+                    this.datasetImages = new Float32Array(datasetBytesBuffer)
+                    resolve()
+                }
+                img.src = MNIST_IMAGES_SPRITE_PATH
+            })
+
+            const labelsRequest = fetch(MNIST_LABELS_PATH)
+            const [imgResponse, labelsResponse] =
+                await Promise.all([imgRequest, labelsRequest])
+
+            this.datasetLabels = new Uint8Array(await labelsResponse.arrayBuffer())
+
+            // Slice the the images and labels into train and test sets.
+            this.trainImages =
+                this.datasetImages.slice(0, IMAGE_SIZE * nTrain)
+            this.testImages = this.datasetImages.slice(IMAGE_SIZE * nTrain, IMAGE_SIZE * (nTrain+nTest))
+            this.trainLabels =
+                this.datasetLabels.slice(0, N_CLASSES * nTrain)
+            this.testLabels =
+                this.datasetLabels.slice(N_CLASSES * nTrain, N_CLASSES * (nTrain+nTest))
+            this.isDownloaded = true
+        }
+
+        prepareTensors() {
+            this.x_train = tf.tensor2d(
+                        this.trainImages,
+                        [this.trainImages.length / IMAGE_SIZE, IMAGE_SIZE])
+            this.y_train = tf.tensor2d(
+                            this.trainLabels, [this.trainLabels.length / N_CLASSES, N_CLASSES])
+            
+            this.train_label_input = tf.zeros([this.nTrain, N_CLASSES])
+            this.train_eps_s_input = tf.zeros([this.nTrain, 9])
+            this.train_eps_z_input = tf.zeros([this.nTrain, 7])
+
+            this.x_test = tf.tensor2d(
+                        this.testImages,
+                        [this.testImages.length / IMAGE_SIZE, IMAGE_SIZE])
+            this.y_test = tf.tensor2d(
+                            this.testLabels, [this.testLabels.length / N_CLASSES, N_CLASSES])
+            
+            this.label_input = tf.zeros([1, N_CLASSES])
+            this.eps_s_input = tf.zeros([1, 9])
+            this.eps_z_input = tf.zeros([1, 7])
+
+            this.centres = [
+                [0.2735824537364199, -0.5244571587071294, 0.2421065338751196, 0.3437414061812041, -1.1862597952566891, 0.21730268112635892, 0.36887779876789767, -1.572811578054931, -0.13911048634976306],
+                [-0.18372277737700207, -0.15923464042904734, 0.4098987041455403, 1.7944498689549384, 1.2297286522896045, -0.8590157025431457, -0.10849300612494561, 1.1703850803319427, -0.0019276679231329267],
+                [0.5165806630722868, 1.3015312115863136, 0.10967868404314582, 0.965603232261514, -0.482197120962794, 1.0264664765795888, 1.082869765090882, 0.37963449762481843, 0.10206868261211892],
+                [0.0694525228372198, 1.503238693016804, -0.6062759849616538, 0.21918803679956797, -0.34807380836159907, -0.43408003550045693, -1.1164537099570584, -0.3938787419403806, -0.10500236502454324],
+                [1.0420634586645368, -1.0253114357299637, -0.002356688186894947, -0.8858652646022771, 0.6520207461978619, 1.254273113614666, -0.44642195719837524, 0.6686282844549472, 0.02277668813476339],
+                [-0.24543341165351923, 0.4264667708733212, 0.6966041925294846, -1.1949852905732443, -0.5512502776836326, -1.3548951044232311, -0.41693207868418597, -0.07453865002329584, 0.2611838013390393],
+                [0.3723908783766903, -1.351622510180648, -0.32549778475592284, 0.05468765841296435, -1.4653572600082019, -0.5779174558109567, -0.0003599999996558783, 0.7482598043215389, -0.1801015378443424],
+                [0.5006241063072582, 0.37012899564158064, 0.03765924678645452, -0.6597443229922237, 1.764818675276372, -0.12054786599283304, 0.6952332126671212, -0.8948257891239402, -0.04635458808495515],
+                [-1.57707834823754, 0.3026285862978653, -0.23894218400617312, -0.3340249190440596, -0.4160277707338318, 0.4793214771596545, 0.3119942748739863, 0.7851332974415492, -0.3653875280514827],
+                [-0.8281256071525446, -0.832500312758295, -0.36661852701631575, -0.29636897393221584, 0.7599817688032315, 0.6922334180356987, -0.6755841754559873, -0.6720145222349949, 0.45359895312550996]
+            ]
+        }
+        
+
+        /**
+        * Get all training data as a data tensor and a labels tensor.
+        *
+        * @returns
+        *   x_train: The data tensor, of shape `[numTrainExamples, 28, 28, 1]`.
+        *   y_train: The one-hot encoded labels tensor, of shape
+        *     `[numTrainExamples, 10]`.
+        */
+        getTrainData() {
+            return [this.x_train, this.x_train, this.train_eps_s_input, this.train_eps_z_input, this.train_label_input, this.y_train]
+        }
+
+        /**
+        * Get all test data as a data tensor a a labels tensor.
+        *
+        * @param {number} numExamples Optional number of examples to get. If not
+        *     provided,
+        *   all test examples will be returned.
+        * @returns
+        *   x_test: The data tensor, of shape `[numTestExamples, 28x28, 1]`.
+        *   y_test: The one-hot encoded labels tensor, of shape
+        *     `[numTestExamples, 10]`.
+        */
+        getTestSample(index) {
+            let x_test = this.x_test.slice([index, 0], [1, IMAGE_SIZE])
+            let y_test = this.y_test.slice([index, 0], [1, N_CLASSES])
+
+            return [x_test, x_test, this.eps_s_input, this.eps_z_input, this.label_input, y_test]
+        }
+    }
+
+    google.charts.load('current', {packages: ['corechart', 'bar']});
+
+    function drawProbabilities(probabilities) {
+
+        var data = google.visualization.arrayToDataTable([
+            ['Class', 'Probability',],
+            ['0', probabilities[0]],
+            ['1', probabilities[1]],
+            ['2', probabilities[2]],
+            ['3', probabilities[3]],
+            ['4', probabilities[4]],
+            ['5', probabilities[5]],
+            ['6', probabilities[6]],
+            ['7', probabilities[7]],
+            ['8', probabilities[8]],
+            ['9', probabilities[9]]
+        ]);
+
+        var options = {
+            title: 'Classification output',
+            legend: {
+                position: 'none'
+            },
+            chartArea: {
+                width: '70%'
+            },
+            hAxis: {
+                title: 'Certainty',
+                minValue: 0,
+                maxValue: 1,
+                viewWindow: {
+                    max: 1,
+                    min: 0
+                }
+            },
+            vAxis: {
+                title: 'Class'
+            },
+            bars: 'horizontal'
+        };
+
+        var materialChart = new google.charts.Bar(document.getElementById('chart_div'));
+        //var chart = new google.visualization.BarChart(document.getElementById('chart_div'));
+
+        materialChart.draw(data, options);
+    }
+
+    function interpolate(s_data, z, label_input) {
+        for (let idx = 0; idx < 10; idx++) {
+            let center = data.centres[idx];
+            let diff = s_data.map(function(num, i) {
+                return (center[i] - num) / STEPS;
+            })
+
+            let reconstructions = [];
+            let s = null;
+            let reconstruction = null;
+            for (let i = 0; i < STEPS; i++) {
+                s = s_data.map(function(num, idx2) {
+                    return num + (i * diff[idx2])
+                })
+                s = tf.tensor([s])
+                reconstruction = decoder.predict([s.concat(z, 1).concat(label_input, 1)]);
+                reconstructions.push(reconstruction)
+            }
+            interpolations[idx] = reconstructions;
+        }
+
+        stopCalculating();
+    }
+
+    function change(idx) {
+        let step = sliders[idx].value;
+        interpolations[idx][step].data().then(array => {
+            show_interpolation(array, idx);
+        })
+    }
+
+    function show_array(array){
+        let dummyname = 'inpdummy';
+        let canvname = 'inpcanvas';
+
+        // fill small 28x28 bitmap
+        var canvasdummy = document.getElementById(dummyname);
+        var srcCtxdummy = canvasdummy.getContext("2d");
+        srcCtxdummy.clearRect(0, 0, canvasdummy.width, canvasdummy.height);
+
+        var canvas = document.getElementById(canvname);
+        var srcCtx = canvas.getContext("2d");
+        srcCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+        var imgData = srcCtxdummy.createImageData(28, 28);
+        var i;
+        for (i = 0; i < imgData.data.length; i += 4) {
+            value = array[i/4]
+            imgData.data[i+0] = value*255;
+            imgData.data[i+1] = value*255;
+            imgData.data[i+2] = value*255;
+            imgData.data[i+3] = 255;
+        }
+        srcCtxdummy.putImageData(imgData, 0, 0, 0, 0, 100, 100);
+
+        var imageObject=new Image();
+        imageObject.onload=function(){
+            if (firstImagePlotInput) {
+                srcCtx.scale(4, 4);
+                firstImagePlotInput = false;
+                
+                for(let i = 0; i < 10; i++) {
+                    sliders.push(document.getElementById('slider' + i.toString()));
+                }
+            }
+            srcCtx.drawImage(imageObject,0,0);
+        }
+        imageObject.src=canvasdummy.toDataURL();
+    }
+
+    function show_interpolation(array, idx){
+        // fill small 28x28 bitmap
+        var canvasdummy = document.getElementById('dummy' + idx.toString());
+        var srcCtxdummy = canvasdummy.getContext("2d");
+        srcCtxdummy.clearRect(0, 0, canvasdummy.width, canvasdummy.height);
+
+        var canvas = document.getElementById('canvas' + idx.toString());
+        var srcCtx = canvas.getContext("2d");
+        srcCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+        var imgData = srcCtxdummy.createImageData(28, 28);
+        var i;
+        for (i = 0; i < imgData.data.length; i += 4) {
+            value = array[i/4]
+            imgData.data[i+0] = value*255;
+            imgData.data[i+1] = value*255;
+            imgData.data[i+2] = value*255;
+            imgData.data[i+3] = 255;
+        }
+        srcCtxdummy.putImageData(imgData, 0, 0, 0, 0, 100, 100);
+
+        var imageObject=new Image();
+        imageObject.onload=function(){
+            if (firstImagePlotInputs[idx]) {
+                srcCtx.scale(4, 4);
+                firstImagePlotInputs[idx] = false;
+                console.log('first time')
+            }
+            srcCtx.drawImage(imageObject,0,0);
+        }
+        imageObject.src=canvasdummy.toDataURL();
+    }
+
+    let model = null;
+    let decoder = null;
+    let data = null;
+
+    const STEPS = 10;
+    let interpolations = [[], [], [], [], [], [], [], [], [], []];
+
+    let sliders = [];
+    let dummies = [];
+    let canvass = [];
+
+    let firstImagePlotInput = true;
+    let firstImagePlotInputs = [true, true, true, true, true, true, true, true, true, true];
+
+    let calculating = false;
+
+    function setCalculating() {
+        document.getElementById('actionbutton').disabled = true;
+    }
+
+    function stopCalculating() {
+        document.getElementById('actionbutton').disabled = false;
+    }
+
+    async function loadmodel() {
+        class lambdaLayer extends tf.layers.Layer {
+            constructor(config) {
+                super(config);
+                if (config.name === undefined) {
+                    config.name = ((+new Date) * Math.random()).toString(36);
+                }
+                this.name = config.name;
+                this.lambdaFunction = config.lambdaFunction;
+                this.lambdaOutputShape = config.lambdaOutputShape;
+            }
+
+            call(input) {
+                return tf.tidy(() => {
+                    let result = null;
+                    eval(this.lambdaFunction);
+                    return result;
+                });
+            }
+
+            computeOutputShape(inputShape) { return inputShape; }
+
+            getConfig() {
+                const config = super.getConfig();
+                Object.assign(config, {
+                    lambdaFunction: this.lambdaFunction,
+                    lambdaOutputShape: this.lambdaOutputShape
+                });
+                return config;
+            }
+            static get className() {
+                return 'lambdaLayer';
+            }
+        }
+
+        tf.serialization.registerClass(lambdaLayer);
+
+        model = await tf.loadLayersModel('/microsoftjscompetitor/model.json', false);
+
+        let layers = model.layers;
+        decoder = layers[layers.length-2];
+
+        data = new MnistData();
+        await data.load(40000, 10000);
+        data.prepareTensors();
+
+        document.getElementById('actionbutton').disabled = false;
+        document.getElementById('actionbutton').innerHTML = "Random input sample";
+    }
+
+    script.onload = loadmodel;
+
+    async function predict() {
+        setCalculating();
+
+        const [x_test, x_test_2, eps_s_input, eps_z_input, label_input, y_test] = data.getTestSample(Math.floor(Math.random() * 10000));
+        x_test.data().then(array => {
+            show_array(array, 'input');
+        });
+        
+        let outputs = model.predict([x_test, x_test_2, eps_s_input, eps_z_input, label_input]);
+
+        let reconstruction = outputs[0];
+        let classification = outputs[1];
+        let s = outputs[2];
+        let z = outputs[3];
+
+        classification.data().then(array => {
+            drawProbabilities(array);
+        })
+
+        reconstruction.data().then(array => {
+            show_interpolation(array, 0);
+            show_interpolation(array, 1);
+            show_interpolation(array, 2);
+            show_interpolation(array, 3);
+            show_interpolation(array, 4);
+            show_interpolation(array, 5);
+            show_interpolation(array, 6);
+            show_interpolation(array, 7);
+            show_interpolation(array, 8);
+            show_interpolation(array, 9);
+        })
+
+        s.data().then(array => {
+            interpolate(array, z, label_input);
+        })
+    }
+</script>
+
+
+<div class="container">
+    <div class="row">
+        <div class="col-sm">
+            <h1>XVAE demo</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-sm">
+            <canvas id="inpdummy" width="28" height="28" style="display: none;">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            <div class="card" style="width: 117px; padding: 5px;">
+                <canvas id="inpcanvas" class="card-img-top" width="112" height="112">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            </div>
+            <button type="button" class="btn btn-primary" style="margin-top: 10px;" id="actionbutton" disabled=true onclick="predict()">Loading model ...</button>
+        </div>
+        <div class="col-sm">
+            <div id="chart_div" style="height:250px;"></div>
+        </div>
+    </div>
+
+    <div class="row">
+
+        <br/>
+
+        <div class="col-sm">
+            <input type="range" id="slider0" name="zero" min="0" max="9" value="0" oninput="change(0)"/>
+            <label for="zero">0</label>
+
+            <canvas id="dummy0" width="28" height="28" style="display: none;">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            <div class="card" style="width: 117px; padding: 5px;">
+                <canvas id="canvas0" class="card-img-top" width="112" height="112">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            </div>
+        </div>
+
+        <div class="col-sm">
+            <input type="range" id="slider1" name="one" min="0" max="9" value="0" oninput="change(1)"/>
+            <label for="one">1</label>
+
+            <canvas id="dummy1" width="28" height="28" style="display: none;">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            <div class="card" style="width: 117px; padding: 5px;">
+                <canvas id="canvas1" class="card-img-top" width="112" height="112">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            </div>
+        </div>
+
+        <div class="col-sm">
+            <input type="range" id="slider2" name="two" min="0" max="9" value="0" oninput="change(2)"/>
+            <label for="two">2</label>
+
+            <canvas id="dummy2" width="28" height="28" style="display: none;">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            <div class="card" style="width: 117px; padding: 5px;">
+                <canvas id="canvas2" class="card-img-top" width="112" height="112">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            </div>
+        </div>
+
+        <div class="col-sm">
+            <input type="range" id="slider3" name="three" min="0" max="9" value="0" oninput="change(3)"/>
+            <label for="three">3</label>
+
+            <canvas id="dummy3" width="28" height="28" style="display: none;">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            <div class="card" style="width: 117px; padding: 5px;">
+                <canvas id="canvas3" class="card-img-top" width="112" height="112">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            </div>
+        </div>
+
+        <div class="col-sm">
+            <input type="range" id="slider4" name="four" min="0" max="9" value="0" oninput="change(4)"/>
+            <label for="four">4</label>
+
+            <canvas id="dummy4" width="28" height="28" style="display: none;">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            <div class="card" style="width: 117px; padding: 5px;">
+                <canvas id="canvas4" class="card-img-top" width="112" height="112">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            </div>
+        </div>
+
+        <div class="col-sm">
+            <input type="range" id="slider5" name="five" min="0" max="9" value="0" oninput="change(5)"/>
+            <label for="five">5</label>
+
+            <canvas id="dummy5" width="28" height="28" style="display: none;">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            <div class="card" style="width: 117px; padding: 5px;">
+                <canvas id="canvas5" class="card-img-top" width="112" height="112">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            </div>
+        </div>
+
+        <div class="col-sm">
+            <input type="range" id="slider6" name="six" min="0" max="9" value="0" oninput="change(6)"/>
+            <label for="six">6</label>
+
+            <canvas id="dummy6" width="28" height="28" style="display: none;">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            <div class="card" style="width: 117px; padding: 5px;">
+                <canvas id="canvas6" class="card-img-top" width="112" height="112">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            </div>
+        </div>
+
+        <div class="col-sm">
+            <input type="range" id="slider7" name="zero" min="0" max="9" value="0" oninput="change(7)"/>
+            <label for="seven">7</label>
+
+            <canvas id="dummy7" width="28" height="28" style="display: none;">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            <div class="card" style="width: 117px; padding: 5px;">
+                <canvas id="canvas7" class="card-img-top" width="112" height="112">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            </div>
+        </div>
+
+        <div class="col-sm">
+            <input type="range" id="slider8" name="eight" min="0" max="9" value="0" oninput="change(8)"/>
+            <label for="eight">8</label>
+
+            <canvas id="dummy8" width="28" height="28" style="display: none;">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            <div class="card" style="width: 117px; padding: 5px;">
+                <canvas id="canvas8" class="card-img-top" width="112" height="112">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            </div>
+        </div>
+
+        <div class="col-sm">
+            <input type="range" id="slider9" name="nine" min="0" max="9" value="0" oninput="change(9)"/>
+            <label for="nine">9</label>
+
+            <canvas id="dummy9" width="28" height="28" style="display: none;">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            <div class="card" style="width: 117px; padding: 5px;">
+                <canvas id="canvas9" class="card-img-top" width="112" height="112">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+            </div>
+        </div>
+    
+    </div>
+</div>
+
+
+<br/>
+<canvas id="dummy" width="28" height="28" style="display: none;">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+<canvas id="canvas" width="112" height="112">Sorry, your browser doesn't support the &lt;canvas&gt; element.</canvas>
+
+
+</body>
+</html>
